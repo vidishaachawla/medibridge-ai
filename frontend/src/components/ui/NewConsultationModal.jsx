@@ -88,11 +88,11 @@ export default function NewConsultationModal({ isOpen, onClose, onSuccess }) {
                 <select
                   value={selectedPatientId}
                   onChange={(e) => setSelectedPatientId(e.target.value)}
-                  className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#1E6BA8] focus:ring-1 focus:ring-[#1E6BA8] transition-all"
+                  className="w-full h-11 px-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 font-medium focus:outline-none focus:border-[#1E6BA8] focus:ring-1 focus:ring-[#1E6BA8] transition-all"
                 >
-                  <option value="">-- Choose Patient --</option>
+                  <option value="" className="text-slate-500">-- Choose Patient --</option>
                   {patients.map(p => (
-                    <option key={p.id} value={p.id}>{p.full_name || p.first_name + ' ' + p.last_name} (ID: {p.id})</option>
+                    <option key={p.id} value={p.id} className="text-slate-900">{p.full_name || p.first_name + ' ' + p.last_name} (ID: {p.id})</option>
                   ))}
                 </select>
               </div>

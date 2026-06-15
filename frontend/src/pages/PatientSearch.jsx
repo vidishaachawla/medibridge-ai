@@ -4,7 +4,7 @@
  * Connected to live FastAPI Backend.
  */
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Users, FileDown, UserPlus, Search, SlidersHorizontal, ShieldCheck, Users2, Activity,
   ChevronDown, IdCard, AlertTriangle, AlertCircle, CheckCircle, UserCircle, Sparkles,
@@ -166,6 +166,8 @@ function PatientRow({ patient }) {
 
 /* ═══════════════════════════════════════════════════════════ */
 export default function PatientSearch() {
+  const [searchParams] = useSearchParams()
+  const riskParam = searchParams.get('risk')
   const [allPatients, setAllPatients] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -185,11 +187,15 @@ export default function PatientSearch() {
       setLoading(true)
       const skip = (currentPage - 1) * limit
       const [data, summary] = await Promise.all([
-        PatientService.getPatients(skip, limit),
+        PatientService.getPatients(skip, limit, riskParam),
         AnalyticsService.getSummary()
       ])
       setAllPatients(data)
-      setTotalCount(summary.total_patients)
+      if (riskParam?.toLowerCase() === 'high') {
+        setTotalCount(summary.high_risk_count)
+      } else {
+        setTotalCount(summary.total_patients)
+      }
       setError(null)
     } catch (err) {
       setError('Failed to fetch patient registry from backend.')
@@ -214,11 +220,10 @@ export default function PatientSearch() {
           setTotalCount(0)
         })
         .finally(() => setLoading(false))
-    } else if (searchQuery === '' && !loading) {
-      // Reload based on page when ABHA search is cleared
+    } else if (searchQuery === '') {
       fetchPatients(page)
     }
-  }, [searchQuery, page])
+  }, [searchQuery, page, riskParam])
 
   // Client-Side filtering for name and risk
   const filteredPatients = useMemo(() => {
@@ -312,6 +317,11 @@ export default function PatientSearch() {
                 <Users className="w-5 h-5" />
               </span>
               <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Patient Registry</h2>
+              {riskParam?.toLowerCase() === 'high' && (
+                <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full uppercase tracking-widest border border-red-200 shadow-sm ml-2">
+                  High Risk Cohort
+                </span>
+              )}
             </div>
             <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-xl">
               Cross-functional registry managing clinical profiles with real-time risk stratification and ABHA synchronization.

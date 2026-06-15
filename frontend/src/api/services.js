@@ -1,8 +1,8 @@
 import client from './client'
 
 export const PatientService = {
-  getPatients: (skip = 0, limit = 50) => 
-    client.get('/api/patients/', { params: { skip, limit } }).then(res => res.data),
+  getPatients: (skip = 0, limit = 50, risk = null) => 
+    client.get('/api/patients/', { params: { skip, limit, ...(risk ? { risk } : {}) } }).then(res => res.data),
   
   getPatientById: (id) => 
     client.get(`/api/patients/${id}`).then(res => res.data),
