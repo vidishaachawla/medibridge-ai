@@ -8,6 +8,7 @@ import Analytics from './pages/Analytics'
 import FHIRExport from './pages/FHIRExport'
 import AuditLogs from './pages/AuditLogs'
 import NotFound from './pages/NotFound'
+import ConsultationHistory from './pages/ConsultationHistory'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/patients/:patientId" element={<PatientDetails />} />
         <Route path="/ai-assistant" element={<AIAssistant />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/consultations" element={<ConsultationHistory />} />
         <Route path="/fhir-export" element={<FHIRExport />} />
         <Route path="/audit-logs" element={<AuditLogs />} />
       </Route>

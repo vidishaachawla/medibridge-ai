@@ -5,6 +5,7 @@
  * Connected to live FastAPI Backend via Axios.
  */
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays,
   Plus,
@@ -23,8 +24,10 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { AnalyticsService, AuditService } from '../api/services'
+import NewConsultationModal from '../components/ui/NewConsultationModal'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [summary, setSummary] = useState(null)
   const [cohorts, setCohorts] = useState(null)
   const [highRisk, setHighRisk] = useState([])
@@ -32,35 +35,52 @@ export default function Dashboard() {
   const [ageRisk, setAgeRisk] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false)
+  const [dateRange, setDateRange] = useState(null)
+
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const params = dateRange ? { start_date: dateRange.start, end_date: dateRange.end } : {}
+      
+      const [summaryData, cohortsData, highRiskData, logsData, ageRiskData] = await Promise.all([
+        AnalyticsService.getSummary(params),
+        AnalyticsService.getConditionCohorts(params),
+        AnalyticsService.getHighRiskPatients(5, params),
+        AuditService.getAuditLogs({ limit: 5 }), // Audit logs keep their own query
+        AnalyticsService.getAgeRiskBuckets(params)
+      ])
+      
+      setSummary(summaryData)
+      setCohorts(cohortsData)
+      setHighRisk(highRiskData)
+      setRecentLogs(logsData)
+      setAgeRisk(ageRiskData)
+      setError(null)
+    } catch (err) {
+      console.error('Dashboard fetch error:', err)
+      setError('Failed to load live dashboard data. Please ensure the backend is running.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        const [summaryData, cohortsData, highRiskData, logsData, ageRiskData] = await Promise.all([
-          AnalyticsService.getSummary(),
-          AnalyticsService.getConditionCohorts(),
-          AnalyticsService.getHighRiskPatients(5),
-          AuditService.getAuditLogs({ limit: 5 }),
-          AnalyticsService.getAgeRiskBuckets()
-        ])
-        setSummary(summaryData)
-        setCohorts(cohortsData)
-        setHighRisk(highRiskData)
-        setRecentLogs(logsData)
-        setAgeRisk(ageRiskData)
-        setError(null)
-      } catch (err) {
-        console.error('Dashboard fetch error:', err)
-        setError('Failed to load live dashboard data. Please ensure the backend is running.')
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchData()
-  }, [])
+  }, [dateRange])
 
-  if (loading) {
+  const toggleDateRange = () => {
+    if (dateRange) {
+      setDateRange(null)
+    } else {
+      const end = new Date()
+      const start = new Date()
+      start.setDate(start.getDate() - 30)
+      setDateRange({ start: start.toISOString(), end: end.toISOString() })
+    }
+  }
+
+  if (loading && !summary) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-10 h-10 text-[#1E6BA8] animate-spin" />
@@ -147,11 +167,18 @@ export default function Dashboard() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <button className="h-[44px] px-5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:border-slate-300 hover:bg-slate-50 transition-all flex items-center gap-3">
-              <CalendarDays className="w-5 h-5 text-slate-400" />
-              Last 30 Days
+            <button 
+              onClick={toggleDateRange}
+              className={`h-[44px] px-5 border rounded-xl text-sm font-semibold transition-all flex items-center gap-3
+                ${dateRange ? 'bg-blue-50 border-blue-200 text-[#1E6BA8]' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
+            >
+              <CalendarDays className={`w-5 h-5 ${dateRange ? 'text-[#1E6BA8]' : 'text-slate-400'}`} />
+              {dateRange ? 'Clear Date Filter' : 'Last 30 Days'}
             </button>
-            <button className="btn-primary px-6 text-white rounded-xl text-sm font-bold flex items-center gap-3">
+            <button 
+              onClick={() => setIsConsultationModalOpen(true)}
+              className="btn-primary px-6 text-white rounded-xl text-sm font-bold flex items-center gap-3"
+            >
               <Plus className="w-5 h-5" />
               New Consultation
             </button>
@@ -162,7 +189,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           
           {/* Card: Total Patients */}
-          <div className="premium-card p-6 border-t-4 border-t-[#1E6BA8]">
+          <div className="premium-card p-6 border-t-4 border-t-[#1E6BA8] cursor-pointer hover:bg-slate-50" onClick={() => navigate('/patients')}>
             <div className="flex justify-between items-start mb-5">
               <div className="w-12 h-12 rounded-full bg-[#1E6BA8]/10 flex items-center justify-center text-[#1E6BA8]">
                 <Users className="w-6 h-6" />
@@ -178,7 +205,7 @@ export default function Dashboard() {
           </div>
 
           {/* Card: High Risk */}
-          <div className="premium-card p-6 border-t-4 border-t-red-500">
+          <div className="premium-card p-6 border-t-4 border-t-red-500 cursor-pointer hover:bg-slate-50" onClick={() => navigate('/patients?risk=high')}>
             <div className="flex justify-between items-start mb-5">
               <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500">
                 <HeartPulse className="w-6 h-6" />
@@ -193,7 +220,7 @@ export default function Dashboard() {
           </div>
 
           {/* Card: Avg Risk */}
-          <div className="premium-card p-6 border-t-4 border-t-amber-500">
+          <div className="premium-card p-6 border-t-4 border-t-amber-500 cursor-pointer hover:bg-slate-50" onClick={() => navigate('/analytics')}>
             <div className="flex justify-between items-start mb-5">
               <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
                 <Activity className="w-6 h-6" />
@@ -206,7 +233,7 @@ export default function Dashboard() {
           </div>
 
           {/* Card: Today's Consults */}
-          <div className="premium-card p-6 border-t-4 border-t-emerald-500">
+          <div className="premium-card p-6 border-t-4 border-t-emerald-500 cursor-pointer hover:bg-slate-50" onClick={() => navigate('/consultations')}>
             <div className="flex justify-between items-start mb-5">
               <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
                 <CalendarCheck className="w-6 h-6" />
@@ -265,49 +292,68 @@ export default function Dashboard() {
                    </div>
                  </div>
                ))}
+               {!ageRisk || ageRisk.length === 0 ? (
+                 <div className="absolute inset-0 z-20 flex items-center justify-center">
+                   <p className="text-slate-400 text-sm font-medium">No risk data available for this period.</p>
+                 </div>
+               ) : null}
             </div>
           </div>
 
           {/* Clinical Prevalence */}
-          <div className="premium-card p-8">
+          <div className="premium-card p-8 flex flex-col">
             <h4 className="text-lg font-bold text-slate-900 tracking-tight mb-2">Clinical Prevalence</h4>
             <p className="text-sm text-slate-500 font-medium mb-8">Disease breakdown by population</p>
             
-            <div className="space-y-8">
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <span className="text-sm font-bold text-slate-700">Hypertension (HTN)</span>
-                  <span className="text-sm font-bold text-[#1E6BA8]">{cohorts?.hypertension_pct?.toFixed(1) || 0}%</span>
-                </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#1E6BA8] rounded-full transition-all duration-1000" style={{ width: `${cohorts?.hypertension_pct || 0}%`}}></div>
-                </div>
+            {loading ? (
+              <div className="space-y-8 flex-1">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-4 bg-slate-200 rounded w-1/3 mb-2"></div>
+                    <div className="h-2 bg-slate-200 rounded w-full"></div>
+                  </div>
+                ))}
               </div>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <span className="text-sm font-bold text-slate-700">Type 2 Diabetes</span>
-                  <span className="text-sm font-bold text-[#1E6BA8]">{cohorts?.diabetes_pct?.toFixed(1) || 0}%</span>
+            ) : (
+              <div className="space-y-8 flex-1">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <span className="text-sm font-bold text-slate-700">Hypertension (HTN)</span>
+                    <span className="text-sm font-bold text-[#1E6BA8]">{cohorts?.hypertension_pct?.toFixed(1) || 0}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#1E6BA8] rounded-full transition-all duration-1000" style={{ width: `${cohorts?.hypertension_pct || 0}%`}}></div>
+                  </div>
                 </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#1E6BA8] rounded-full transition-all duration-1000" style={{ width: `${cohorts?.diabetes_pct || 0}%`}}></div>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <span className="text-sm font-bold text-slate-700">Type 2 Diabetes</span>
+                    <span className="text-sm font-bold text-[#1E6BA8]">{cohorts?.diabetes_pct?.toFixed(1) || 0}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#1E6BA8] rounded-full transition-all duration-1000" style={{ width: `${cohorts?.diabetes_pct || 0}%`}}></div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <span className="text-sm font-bold text-slate-700">Smoker History</span>
-                  <span className="text-sm font-bold text-[#1E6BA8]">{cohorts?.smoker_pct?.toFixed(1) || 0}%</span>
-                </div>
-                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#1E6BA8] rounded-full transition-all duration-1000" style={{ width: `${cohorts?.smoker_pct || 0}%`}}></div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-end">
+                    <span className="text-sm font-bold text-slate-700">Smoker History</span>
+                    <span className="text-sm font-bold text-[#1E6BA8]">{cohorts?.smoker_pct?.toFixed(1) || 0}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#1E6BA8] rounded-full transition-all duration-1000" style={{ width: `${cohorts?.smoker_pct || 0}%`}}></div>
+                  </div>
                 </div>
               </div>
+            )}
 
-              <button className="w-full py-3.5 border-2 border-slate-100 rounded-xl text-xs font-bold text-slate-500 hover:border-[#1E6BA8]/20 hover:text-[#1E6BA8] hover:bg-blue-50 transition-all mt-4">
-                View Comprehensive Analytics
-              </button>
-            </div>
+            <button 
+              onClick={() => navigate('/analytics')}
+              className="w-full py-3.5 border-2 border-slate-100 rounded-xl text-xs font-bold text-slate-500 hover:border-[#1E6BA8]/20 hover:text-[#1E6BA8] hover:bg-blue-50 transition-all mt-8"
+            >
+              View Comprehensive Analytics
+            </button>
           </div>
         </div>
 
@@ -321,7 +367,10 @@ export default function Dashboard() {
                 <h4 className="text-lg font-bold text-slate-900 tracking-tight">High Risk Registry</h4>
                 <p className="text-xs text-slate-500 font-medium">Priority clinical monitoring required</p>
               </div>
-              <button className="text-[11px] font-bold text-[#1E6BA8] hover:bg-blue-50 px-4 py-2 rounded-lg transition-all uppercase tracking-widest">
+              <button 
+                onClick={() => navigate('/fhir-export')}
+                className="text-[11px] font-bold text-[#1E6BA8] hover:bg-blue-50 px-4 py-2 rounded-lg transition-all uppercase tracking-widest"
+              >
                 Export Registry
               </button>
             </div>
@@ -337,7 +386,7 @@ export default function Dashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-100/50">
                   {highRisk?.map(patient => (
-                    <tr key={patient.id} className="table-row-hover group cursor-pointer">
+                    <tr key={patient.id} className="table-row-hover group cursor-pointer" onClick={() => navigate(`/patients/${patient.id}`)}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full border-2 border-white shadow-sm overflow-hidden bg-slate-100 shrink-0">
@@ -370,7 +419,7 @@ export default function Dashboard() {
                       </td>
                     </tr>
                   ))}
-                  {highRisk.length === 0 && (
+                  {(!highRisk || highRisk.length === 0) && (
                      <tr>
                        <td colSpan={4} className="px-6 py-8 text-center text-sm font-medium text-slate-400">No high risk patients found.</td>
                      </tr>
@@ -387,7 +436,10 @@ export default function Dashboard() {
                 <h4 className="text-lg font-bold text-slate-900 tracking-tight">Live Activity</h4>
                 <p className="text-xs text-slate-500 font-medium">Real-time system audit monitoring</p>
               </div>
-              <button className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-[#1E6BA8] transition-all">
+              <button 
+                onClick={() => navigate('/audit-logs')}
+                className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-[#1E6BA8] transition-all"
+              >
                 <History className="w-5 h-5" />
               </button>
             </div>
@@ -410,7 +462,7 @@ export default function Dashboard() {
                 }
 
                 return (
-                  <div key={log.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 rounded-2xl transition-all cursor-pointer group">
+                  <div key={log.id} onClick={() => log.patient_id ? navigate(`/patients/${log.patient_id}`) : navigate('/audit-logs')} className="p-4 flex items-center justify-between hover:bg-slate-50/50 rounded-2xl transition-all cursor-pointer group">
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all group-hover:text-white shrink-0 ${colorClass}`}>
                         <IconType className="w-6 h-6" />
@@ -427,7 +479,7 @@ export default function Dashboard() {
                 )
               })}
 
-              {recentLogs.length === 0 && (
+              {(!recentLogs || recentLogs.length === 0) && (
                 <div className="p-8 text-center text-sm font-medium text-slate-400">
                   No recent activity found.
                 </div>
@@ -456,6 +508,12 @@ export default function Dashboard() {
         </footer>
 
       </div>
+      
+      <NewConsultationModal 
+        isOpen={isConsultationModalOpen} 
+        onClose={() => setIsConsultationModalOpen(false)}
+        onSuccess={fetchData}
+      />
     </>
   )
 }

@@ -15,26 +15,26 @@ export const PatientService = {
 }
 
 export const AnalyticsService = {
-  getSummary: () => 
-    client.get('/api/analytics/summary').then(res => res.data),
+  getSummary: (params = {}) => 
+    client.get('/api/analytics/summary', { params }).then(res => res.data),
   
-  getRiskDistribution: () => 
-    client.get('/api/analytics/risk-distribution').then(res => res.data),
+  getRiskDistribution: (params = {}) => 
+    client.get('/api/analytics/risk-distribution', { params }).then(res => res.data),
   
-  getVitalsAverages: () => 
-    client.get('/api/analytics/vitals-averages').then(res => res.data),
+  getVitalsAverages: (params = {}) => 
+    client.get('/api/analytics/vitals-averages', { params }).then(res => res.data),
   
-  getConditionCohorts: () => 
-    client.get('/api/analytics/condition-cohorts').then(res => res.data),
+  getConditionCohorts: (params = {}) => 
+    client.get('/api/analytics/condition-cohorts', { params }).then(res => res.data),
   
-  getHighRiskPatients: (limit = 20) => 
-    client.get('/api/analytics/high-risk-patients', { params: { limit } }).then(res => res.data),
+  getHighRiskPatients: (limit = 20, params = {}) => 
+    client.get('/api/analytics/high-risk-patients', { params: { limit, ...params } }).then(res => res.data),
   
-  getTopConditions: (limit = 10) => 
-    client.get('/api/analytics/top-conditions', { params: { limit } }).then(res => res.data),
+  getTopConditions: (limit = 10, params = {}) => 
+    client.get('/api/analytics/top-conditions', { params: { limit, ...params } }).then(res => res.data),
   
-  getAgeRiskBuckets: () => 
-    client.get('/api/analytics/age-risk-buckets').then(res => res.data),
+  getAgeRiskBuckets: (params = {}) => 
+    client.get('/api/analytics/age-risk-buckets', { params }).then(res => res.data),
 }
 
 export const ClinicalService = {
@@ -43,6 +43,9 @@ export const ClinicalService = {
   
   getHistory: (patient_id) => 
     client.get(`/api/clinical/history/${patient_id}`).then(res => res.data),
+    
+  getAllConsultations: (skip = 0, limit = 50) =>
+    client.get('/api/clinical/consultations', { params: { skip, limit } }).then(res => res.data),
 }
 
 export const FhirService = {
